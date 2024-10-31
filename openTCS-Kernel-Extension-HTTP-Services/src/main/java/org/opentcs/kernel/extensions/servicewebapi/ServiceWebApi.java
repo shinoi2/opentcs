@@ -104,6 +104,8 @@ public class ServiceWebApi
       LOG.warn("Encryption disabled, connections will not be secured!");
     }
 
+    service.webSocket("/ws", v1RequestHandler.getWsEventHandler());
+
     service.before((request, response) -> {
       if (!authenticator.isAuthenticated(request)) {
         // Delay the response a bit to slow down brute force attacks.

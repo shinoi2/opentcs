@@ -7,6 +7,7 @@
  */
 package org.opentcs.kernel.extensions.servicewebapi.v1;
 
+import org.opentcs.data.model.Vehicle;
 import org.opentcs.kernel.extensions.servicewebapi.JsonBinder;
 import static java.util.Objects.requireNonNull;
 import java.util.concurrent.ExecutionException;
@@ -41,6 +42,7 @@ public class V1RequestHandler
 
   private final JsonBinder jsonBinder;
   private final StatusEventDispatcher statusEventDispatcher;
+  private final WsEventHandler wsEventHandler;
   private final TransportOrderDispatcherHandler orderDispatcherHandler;
   private final TransportOrderHandler transportOrderHandler;
   private final PeripheralJobHandler peripheralJobHandler;
@@ -56,6 +58,7 @@ public class V1RequestHandler
   @Inject
   public V1RequestHandler(JsonBinder jsonBinder,
                           StatusEventDispatcher statusEventDispatcher,
+                          WsEventHandler wsEventHandler,
                           TransportOrderDispatcherHandler orderDispatcherHandler,
                           TransportOrderHandler transportOrderHandler,
                           PeripheralJobHandler peripheralJobHandler,
@@ -67,6 +70,7 @@ public class V1RequestHandler
                           PeripheralHandler peripheralHandler) {
     this.jsonBinder = requireNonNull(jsonBinder, "jsonBinder");
     this.statusEventDispatcher = requireNonNull(statusEventDispatcher, "statusEventDispatcher");
+    this.wsEventHandler = requireNonNull(wsEventHandler, "wsEventHandler");
     this.orderDispatcherHandler = requireNonNull(orderDispatcherHandler, "orderDispatcherHandler");
     this.transportOrderHandler = requireNonNull(transportOrderHandler, "transportOrderHandler");
     this.peripheralJobHandler = requireNonNull(peripheralJobHandler, "peripheralJobHandler");
@@ -85,6 +89,7 @@ public class V1RequestHandler
     }
 
     statusEventDispatcher.initialize();
+    wsEventHandler.initialize();
 
     initialized = true;
   }
@@ -101,8 +106,13 @@ public class V1RequestHandler
     }
 
     statusEventDispatcher.terminate();
+    wsEventHandler.terminate();
 
     initialized = false;
+  }
+
+  public WsEventHandler getWsEventHandler() {
+    return wsEventHandler;
   }
 
   @Override
@@ -125,6 +135,12 @@ public class V1RequestHandler
                 this::handlePutVehiclePaused);
     service.put("/vehicles/:NAME/integrationLevel",
                 this::handlePutVehicleIntegrationLevel);
+    service.put("/vehicles/:NAME/position",
+                this::handlePutVehiclePosition);
+    service.post("/vehicles/:NAME/enable",
+                this::handleEnableVehicle);
+    service.post("/vehicles/:NAME/disable",
+                 this::handleDisableVehicle);
     service.post("/vehicles/:NAME/withdrawal",
                  this::handlePostWithdrawalByVehicle);
     service.post("/vehicles/:NAME/rerouteRequest",
@@ -433,6 +449,30 @@ public class V1RequestHandler
         request.params(":NAME"),
         valueIfKeyPresent(request.queryMap(), "newValue")
     );
+    response.type(HttpConstants.CONTENT_TYPE_TEXT_PLAIN_UTF8);
+    return "";
+  }
+
+  private Object handlePutVehiclePosition(Request request, Response response)
+      throws ObjectUnknownException, IllegalArgumentException {
+    vehicleHandler.putVehiclePosition(request.params(":NAME"));
+    response.type(HttpConstants.CONTENT_TYPE_TEXT_PLAIN_UTF8);
+    return "";
+  }
+
+  private Object handleEnableVehicle(Request request, Response response)
+      throws ObjectUnknownException, IllegalArgumentException {
+    vehicleHandler.putVehicleIntegrationLevel(request.params(":NAME"), Vehicle.IntegrationLevel.TO_BE_UTILIZED.name());
+    vehicleHandler.putVehicleCommAdapterEnabled(request.params(":NAME"), String.valueOf(true));
+    vehicleHandler.putVehiclePosition(request.params(":NAME"));
+    response.type(HttpConstants.CONTENT_TYPE_TEXT_PLAIN_UTF8);
+    return "";
+  }
+
+  private Object handleDisableVehicle(Request request, Response response)
+      throws ObjectUnknownException, IllegalArgumentException {
+    vehicleHandler.putVehicleIntegrationLevel(request.params(":NAME"), Vehicle.IntegrationLevel.TO_BE_IGNORED.name());
+    vehicleHandler.putVehicleCommAdapterEnabled(request.params(":NAME"), String.valueOf(false));
     response.type(HttpConstants.CONTENT_TYPE_TEXT_PLAIN_UTF8);
     return "";
   }

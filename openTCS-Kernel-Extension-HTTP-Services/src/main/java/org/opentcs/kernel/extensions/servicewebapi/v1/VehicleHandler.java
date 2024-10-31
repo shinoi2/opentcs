@@ -17,14 +17,19 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import static org.opentcs.components.kernel.Dispatcher.PROPKEY_ASSIGNED_RECHARGE_LOCATION;
+import org.opentcs.components.kernel.services.PlantModelService;
 import org.opentcs.components.kernel.services.RouterService;
 import org.opentcs.components.kernel.services.VehicleService;
 import org.opentcs.data.ObjectUnknownException;
 import org.opentcs.data.TCSObjectReference;
+import org.opentcs.data.model.Location;
 import org.opentcs.data.model.Point;
+import org.opentcs.data.model.TCSResourceReference;
 import org.opentcs.data.model.Vehicle;
 import org.opentcs.data.order.Route;
 import org.opentcs.drivers.vehicle.VehicleCommAdapterDescription;
+import org.opentcs.drivers.vehicle.commands.InitPositionCommand;
 import org.opentcs.drivers.vehicle.management.VehicleAttachmentInformation;
 import org.opentcs.kernel.extensions.servicewebapi.KernelExecutorWrapper;
 import org.opentcs.kernel.extensions.servicewebapi.v1.binding.GetVehicleResponseTO;
@@ -38,6 +43,7 @@ public class VehicleHandler {
 
   private final VehicleService vehicleService;
   private final RouterService routerService;
+  private final PlantModelService plantModelService;
   private final KernelExecutorWrapper executorWrapper;
 
   /**
@@ -50,9 +56,11 @@ public class VehicleHandler {
   @Inject
   public VehicleHandler(VehicleService vehicleService,
                         RouterService routerService,
+                        PlantModelService plantModelService,
                         KernelExecutorWrapper executorWrapper) {
     this.vehicleService = requireNonNull(vehicleService, "vehicleService");
     this.routerService = requireNonNull(routerService, "routerService");
+    this.plantModelService = requireNonNull(plantModelService, "plantModelService");
     this.executorWrapper = requireNonNull(executorWrapper, "executorWrapper");
   }
 
@@ -107,9 +115,53 @@ public class VehicleHandler {
       if (vehicle == null) {
         throw new ObjectUnknownException("Unknown vehicle: " + name);
       }
-
+      if (Vehicle.IntegrationLevel.valueOf(value).equals(vehicle.getIntegrationLevel())) {
+        throw new ObjectUnknownException("Integration Level Duplicate: " +
+                                         vehicle.getIntegrationLevel().name());
+      }
       vehicleService.updateVehicleIntegrationLevel(vehicle.getReference(),
                                                    Vehicle.IntegrationLevel.valueOf(value));
+    });
+  }
+
+  public void putVehiclePosition(String name)
+      throws ObjectUnknownException, IllegalArgumentException {
+    requireNonNull(name, "name");
+
+    executorWrapper.callAndWait(() -> {
+      Vehicle vehicle = vehicleService.fetchObject(Vehicle.class, name);
+      if (vehicle == null) {
+        throw new ObjectUnknownException("Unknown vehicle: " + name);
+      }
+
+      if (!vehicleService.fetchAttachmentInformation(vehicle.getReference())
+          .getAttachedCommAdapter().isSimVehicleCommAdapter()) {
+        throw new ObjectUnknownException("Vehicle " + name +" not a simulation adapter");
+      }
+
+      String locationName = vehicle.getProperty(PROPKEY_ASSIGNED_RECHARGE_LOCATION);
+      if (locationName == null) {
+        throw new ObjectUnknownException("Vehicle " + name + "not assigned recharge location");
+      }
+
+      Location location = plantModelService.fetchObject(Location.class, locationName);
+      if (location == null) {
+        throw new ObjectUnknownException("Unknown assigned recharge location: " + locationName);
+      }
+
+      if (location.getAttachedLinks().size() != 1) {
+        throw new ObjectUnknownException("Location: " + locationName + " links " +
+                                         location.getAttachedLinks().size() + " positions");
+      }
+
+      TCSResourceReference<Point> point = location.getAttachedLinks().iterator().next().getPoint();
+      if (point != null) {
+
+        vehicleService.sendCommAdapterCommand(
+            vehicle.getReference(),
+            new InitPositionCommand(point.getName())
+        );
+      }
     });
   }
 

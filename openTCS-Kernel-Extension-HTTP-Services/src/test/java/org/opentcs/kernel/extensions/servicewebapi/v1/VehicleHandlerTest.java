@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import org.opentcs.components.kernel.services.PlantModelService;
 import org.opentcs.components.kernel.services.RouterService;
 import org.opentcs.components.kernel.services.VehicleService;
 import org.opentcs.data.ObjectUnknownException;
@@ -47,6 +48,7 @@ class VehicleHandlerTest {
 
   private VehicleService vehicleService;
   private RouterService routerService;
+  private PlantModelService plantModelService;
   private KernelExecutorWrapper executorWrapper;
 
   private VehicleHandler handler;
@@ -59,9 +61,10 @@ class VehicleHandlerTest {
   void setUp() {
     vehicleService = mock();
     routerService = mock();
+    plantModelService = mock();
     executorWrapper = new KernelExecutorWrapper(Executors.newSingleThreadExecutor());
 
-    handler = new VehicleHandler(vehicleService, routerService, executorWrapper);
+    handler = new VehicleHandler(vehicleService, routerService, plantModelService, executorWrapper);
 
     vehicle = new Vehicle("some-vehicle");
     adapterDescriptionMock = new MockVehicleCommAdapterDescription();

@@ -7,6 +7,7 @@
  */
 package org.opentcs.kernel.extensions.servicewebapi.v1.binding;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import static java.util.Objects.requireNonNull;
@@ -38,6 +39,8 @@ public class GetTransportOrderResponseTO {
 
   private List<DestinationState> destinations = new ArrayList<>();
 
+  private Instant creationTime;
+
   public GetTransportOrderResponseTO() {
   }
 
@@ -56,6 +59,15 @@ public class GetTransportOrderResponseTO {
 
   public GetTransportOrderResponseTO setName(String name) {
     this.name = requireNonNull(name, "name");
+    return this;
+  }
+
+  public Instant getCreationTime() {
+    return this.creationTime;
+  }
+
+  public GetTransportOrderResponseTO setCreationTime(Instant creationTime) {
+    this.creationTime = requireNonNull(creationTime, "creationTime");
     return this;
   }
 
@@ -136,6 +148,7 @@ public class GetTransportOrderResponseTO {
     GetTransportOrderResponseTO transportOrderState = new GetTransportOrderResponseTO();
     transportOrderState.setDispensable(transportOrder.isDispensable());
     transportOrderState.setName(transportOrder.getName());
+    transportOrderState.setCreationTime(transportOrder.getCreationTime());
     transportOrderState.setPeripheralReservationToken(
         transportOrder.getPeripheralReservationToken()
     );

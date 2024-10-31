@@ -7,6 +7,7 @@
  */
 package org.opentcs.kernel.extensions.servicewebapi.v1.binding;
 
+import java.time.Instant;
 import java.util.List;
 import org.approvaltests.Approvals;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,7 @@ class GetTransportOrderResponseTOTest {
             .setState(TransportOrder.State.BEING_PROCESSED)
             .setIntendedVehicle("some-vehicle")
             .setProcessingVehicle("some-vehicle")
+            .setCreationTime(Instant.EPOCH)
             .setDestinations(
                 List.of(
                     new DestinationState()
